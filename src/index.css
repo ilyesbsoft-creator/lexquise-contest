@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes bounce-medium {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes bounce-fast {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-25px); }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 4s infinite ease-in-out;
+}
+
+.animate-bounce-medium {
+  animation: bounce-medium 3s infinite ease-in-out;
+}
+
+.animate-bounce-fast {
+  animation: bounce-fast 2s infinite ease-in-out;
+}
