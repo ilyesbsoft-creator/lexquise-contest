@@ -13,8 +13,10 @@ import { db } from "./config/firebase.js"; // لا تعيد initializeApp هنا
 dotenv.config();
 
 const app = express();
-const cors = require('cors');
-app.use(cors({ origin: 'https://lexquise-contest.vercel.app/' }));
+app.use(cors({
+  origin: "https://lexquise-contest.vercel.app",
+  methods: ["GET", "POST"],
+}));
 app.use(express.json());
 
 // === Cloudinary Initialization ===
