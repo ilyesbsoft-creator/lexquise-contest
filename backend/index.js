@@ -4,54 +4,71 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
-import { initializeApp, cert } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import crypto from "crypto";
 import exportRoutes from "./routes/export.js";
-import { db } from "./config/firebase.js"; // لا تعيد initializeApp هنا
+import { db } from "./config/firebase.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors({
-    origin: [
-        "https://lexquise-contest.vercel.app", // موقعك على Vercel
-        "http://localhost:5173"                // أثناء التطوير
-    ],
-    methods: "GET,POST,PUT,DELETE",
-    credentials: true
-}));
+// =======================
+//  CORS FIX
+// =======================
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://lexquise-contest.vercel.app");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(express.json());
 
-// === Cloudinary Initialization ===
+// =======================
+// Cloudinary
+// =======================
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// === Multer Setup ===
+// =======================
+// Multer
+// =======================
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// =========================================================
-// 🟠 1) Save Entry مع التحقق من الهاتف + Hash الصورة + FingerprintJS
-// =========================================================
+// =======================
+// ROOT ROUTE — IMPORTANT
+// =======================
+app.get("/", (req, res) => {
+  res.json({
+    status: "Backend Running",
+    message: "Welcome to Lexquise Contest API",
+  });
+});
+
+// =======================
+// Save Entry
+// =======================
 app.post("/saveEntry", upload.single("file"), async (req, res) => {
   try {
     const { firstName, lastName, phone, city, code, deviceId } = req.body;
 
     if (!deviceId) {
-      return res.status(400).json({ error: "معرّف الجهاز مفقود (Device Fingerprint)" });
+      return res.status(400).json({ error: "معرّف الجهاز مفقود" });
     }
 
     if (!req.file) {
       return res.status(400).json({ error: "يرجى رفع صورة القارورة" });
     }
 
-    // --- تحقق من رقم الهاتف ---
     const phoneSnapshot = await db
       .collection("entries")
       .where("phone", "==", phone)
@@ -60,18 +77,14 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
       return res.status(400).json({ error: "رقم الهاتف سبق استخدامه." });
     }
 
-    // --- تحقق من Device FingerprintJS ---
     const deviceSnapshot = await db
       .collection("entries")
       .where("deviceId", "==", deviceId)
       .get();
     if (!deviceSnapshot.empty) {
-      return res.status(400).json({
-        error: "هذا الجهاز شارك مسبقاً، لا يمكنك المشاركة مرتين.",
-      });
+      return res.status(400).json({ error: "هذا الجهاز شارك مسبقاً." });
     }
 
-    // --- حساب Hash الصورة ---
     const buffer = req.file.buffer;
     const hash = crypto.createHash("md5").update(buffer).digest("hex");
 
@@ -80,12 +93,9 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
       .where("imageHash", "==", hash)
       .get();
     if (!hashSnapshot.empty) {
-      return res.status(400).json({
-        error: "هذه الصورة تم استخدامها مسبقاً.",
-      });
+      return res.status(400).json({ error: "الصورة تم استخدامها مسبقاً." });
     }
 
-    // --- رفع الصورة إلى Cloudinary ---
     const uploadToCloudinary = (fileBuffer) => {
       return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -102,7 +112,6 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
     const uploadResult = await uploadToCloudinary(buffer);
     const imageUrl = uploadResult.secure_url;
 
-    // --- حفظ البيانات ---
     const docRef = db.collection("entries").doc();
     await docRef.set({
       firstName,
@@ -112,7 +121,7 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
       code,
       imageUrl,
       imageHash: hash,
-      deviceId, // 🟢 تخزين معرّف الجهاز
+      deviceId,
       createdAt: new Date().toISOString(),
     });
 
@@ -124,9 +133,9 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
   }
 });
 
-// =========================================================
-// 🟠 2) Get All Entries
-// =========================================================
+// =======================
+// Get Entries
+// =======================
 app.get("/getEntries", async (req, res) => {
   try {
     const snapshot = await db
@@ -134,21 +143,18 @@ app.get("/getEntries", async (req, res) => {
       .orderBy("createdAt", "desc")
       .get();
 
-    const entries = snapshot.docs.map((doc) => ({
+    const entries = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     }));
 
     res.json({ entries });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "خطأ في جلب البيانات" });
   }
 });
-
-// =========================================================
-// Start server
-// =========================================================
 
 app.use("/export", exportRoutes);
 
