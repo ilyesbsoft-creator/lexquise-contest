@@ -22,7 +22,7 @@ export default function AdminPanel() {
   const fetchEntries = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://192.168.1.15:5000/getEntries");
+      const res = await axios.get("https://lexquise-contest.onrender.com/getEntries");
       setEntries(res.data.entries);
     } catch (err) {
       console.error(err);

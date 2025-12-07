@@ -2,7 +2,7 @@ import React from "react";
 
 export default function ExportPanel() {
   const downloadExport = () => {
-    window.location.href = "http://192.168.1.15:5000/export"; // رابط API التصدير
+    window.location.href = "https://lexquise-contest.onrender.com/export"; // رابط API التصدير
   };
 
   return (

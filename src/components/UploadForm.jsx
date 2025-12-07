@@ -56,7 +56,7 @@ export default function UploadForm({ competitionCode }) {
       dataForm.append("file", formData.file);
       dataForm.append("deviceId", deviceId);
 
-      await axios.post("http://192.168.1.15:5000/saveEntry", dataForm, {
+      await axios.post("https://lexquise-contest.onrender.com/saveEntry", dataForm, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
