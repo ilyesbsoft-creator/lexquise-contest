@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 const cors = require('cors');
-app.use(cors({ origin: '*' }));
+app.use(cors({ origin: 'https://lexquise-contest.vercel.app/' }));
 app.use(express.json());
 
 // === Cloudinary Initialization ===
