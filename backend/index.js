@@ -160,13 +160,18 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
 app.get("/getEntries", async (req, res) => {
   try {
     const snapshot = await db.collection("entries").get();
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.json({ success: true, data });
+    const entries = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, entries });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب البيانات." });
+    res.status(500).json({ error: "Error fetching entries" });
   }
 });
+
 
 app.use("/export", exportRoutes);
 
