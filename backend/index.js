@@ -57,9 +57,29 @@ app.get("/", (req, res) => {
 // =======================
 // Save Entry
 // =======================
+// =======================
+// Save Entry with captchaToken
+// =======================
 app.post("/saveEntry", upload.single("file"), async (req, res) => {
   try {
-    const { firstName, lastName, phone, city, code, deviceId } = req.body;
+    const { firstName, lastName, phone, city, code, deviceId, captchaToken } = req.body;
+
+    // ====== تحقق من captchaToken ======
+    if (!captchaToken) {
+      return res.status(400).json({ error: "رجاءً أكّد أنك لست روبوتًا." });
+    }
+
+    // إذا أردت تحقق رسمي من Google ReCAPTCHA:
+    /*
+    const axios = require("axios");
+    const secretKey = process.env.RECAPTCHA_SECRET;
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+
+    const response = await axios.post(verifyUrl);
+    if (!response.data.success) {
+      return res.status(400).json({ error: "فشل التحقق من reCAPTCHA." });
+    }
+    */
 
     if (!deviceId) {
       return res.status(400).json({ error: "معرّف الجهاز مفقود" });
@@ -122,6 +142,7 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
       imageUrl,
       imageHash: hash,
       deviceId,
+      captchaToken, // حفظ الـ token (اختياري)
       createdAt: new Date().toISOString(),
     });
 
@@ -130,29 +151,6 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "حدث خطأ أثناء حفظ المشاركة" });
-  }
-});
-
-// =======================
-// Get Entries
-// =======================
-app.get("/getEntries", async (req, res) => {
-  try {
-    const snapshot = await db
-      .collection("entries")
-      .orderBy("createdAt", "desc")
-      .get();
-
-    const entries = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    res.json({ entries });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "خطأ في جلب البيانات" });
   }
 });
 
