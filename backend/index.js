@@ -142,7 +142,7 @@ app.post("/saveEntry", upload.single("file"), async (req, res) => {
       imageUrl,
       imageHash: hash,
       deviceId,
-      captchaToken, // حفظ الـ token (اختياري)
+      //captchaToken, // حفظ الـ token (اختياري)
       createdAt: new Date().toISOString(),
     });
 
