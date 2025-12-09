@@ -24,18 +24,55 @@ export default function UploadForm({ competitionCode }) {
   // Modal (الشروط)
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-    const loadFP = async () => {
-      try {
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        setDeviceId(result.visitorId);
-      } catch (err) {
-        console.error("FingerprintJS failed", err);
+ useEffect(() => {
+  const generateHybridDeviceId = async () => {
+    try {
+      // 1) FingerprintJS
+      const fp = await FingerprintJS.load();
+      const result = await fp.get();
+      const fpId = result.visitorId;
+
+      // 2) UUID محلي لا يتغير لنفس الجهاز
+      let localUUID = localStorage.getItem("local_uuid");
+      if (!localUUID) {
+        localUUID = crypto.randomUUID();
+        localStorage.setItem("local_uuid", localUUID);
       }
-    };
-    loadFP();
-  }, []);
+
+      // 3) بصمة المتصفح والنظام
+      const userAgent = navigator.userAgent;
+      const language = navigator.language;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const screenRes = `${window.screen.width}x${window.screen.height}`;
+      const pixelRatio = window.devicePixelRatio;
+
+      // 4) بناء بصمة مركبة
+      const rawString =
+        fpId +
+        userAgent +
+        language +
+        timezone +
+        screenRes +
+        pixelRatio +
+        localUUID;
+
+      // 5) SHA-256 Hash
+      const encoder = new TextEncoder();
+      const data = encoder.encode(rawString);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hybridId = hashArray
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      setDeviceId(hybridId);
+    } catch (err) {
+      console.error("Hybrid Fingerprint failed", err);
+    }
+  };
+
+  generateHybridDeviceId();
+}, []);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
