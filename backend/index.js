@@ -172,6 +172,11 @@ app.get("/getEntries", async (req, res) => {
   }
 });
 
+// health check route
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "UP" });
+});
+
 
 app.use("/export", exportRoutes);
 
