@@ -1,35 +1,32 @@
 import React, { useEffect, useRef } from "react";
 
 /**
- * WinnerModal props:
- * - winner: object (المشاركة)
+ * Props:
+ * - winner: object (المشارك)
  * - title: string
  * - buttonText: string
  * - onClose: function
- * - onShow: optional function (when modal opens)
- *
- * هذا المودال يتضمن:
- * - أنيميشن دخول/خروج
- * - canvas لصنع confetti عند mount
- * - تشغيل onShow (مثل صوت) عند الظهور
+ * - onShow: optional function عند ظهور الفائز
  */
 
 export default function WinnerModal({ winner, title, buttonText, onClose, onShow }) {
   const canvasRef = useRef(null);
 
+  // ======== تشغيل الصوت + confetti + rotation ========
   useEffect(() => {
+    if (!winner) return;
     if (onShow) onShow();
+    playWinSound();
     startConfetti();
-    // تتوقف بعد 5 ثواني
-    const t = setTimeout(() => stopConfetti(), 5000);
+
+    const t = setTimeout(stopConfetti, 5000);
     return () => {
       clearTimeout(t);
       stopConfetti();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [winner]);
 
-  // ======== Confetti بسيط على canvas ========
+  // ======== Confetti ========
   const confettiState = useRef({
     ctx: null,
     particles: [],
@@ -39,8 +36,7 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
   const startConfetti = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    confettiState.current.ctx = ctx;
+    confettiState.current.ctx = canvas.getContext("2d");
     resizeCanvas();
     spawnParticles(120);
     loop();
@@ -49,10 +45,7 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
 
   const stopConfetti = () => {
     window.removeEventListener("resize", resizeCanvas);
-    if (confettiState.current.raf) {
-      cancelAnimationFrame(confettiState.current.raf);
-      confettiState.current.raf = null;
-    }
+    if (confettiState.current.raf) cancelAnimationFrame(confettiState.current.raf);
     confettiState.current.particles = [];
     const ctx = confettiState.current.ctx;
     if (ctx) ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -72,7 +65,6 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
     if (!canvas) return;
     const { width } = canvas;
     const colors = ["#ff4444", "#ffbb33", "#00C851", "#33b5e5", "#ff66cc", "#aa66cc"];
-
     for (let i = 0; i < n; i++) {
       confettiState.current.particles.push({
         x: random(0, width),
@@ -90,7 +82,7 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
     }
   };
 
-  const updateParticles = (dt) => {
+  const updateParticles = () => {
     const p = confettiState.current.particles;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -101,7 +93,6 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
       par.x += par.vx;
       par.y += par.vy;
       par.rot += par.vr;
-      // remove after ttl or out of canvas
       if (Date.now() - par.created > par.ttl || par.y - par.h > canvas.height + 60) {
         p.splice(i, 1);
       }
@@ -118,7 +109,6 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
       ctx.translate(par.x, par.y);
       ctx.rotate(par.rot);
       ctx.fillStyle = par.color;
-      // رسم مستطيل مائل كمقطع confetti
       ctx.fillRect(-par.w / 2, -par.h / 2, par.w, par.h);
       ctx.restore();
     });
@@ -130,61 +120,85 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
     if (confettiState.current.particles.length < 40) spawnParticles(18);
     confettiState.current.raf = requestAnimationFrame(loop);
   };
-  // ======== نهاية confetti ========
 
-  const displayName = (w) => {
-    if (!w) return "مشارك";
-    if (w.firstName) return `${w.firstName} ${w.lastName || ""}`;
-    if (w.phone) return w.phone;
-    if (w.email) return w.email;
-    return w.id || "مشارك";
+  // ======== صوت الفائز ========
+  const playWinSound = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = ctx.currentTime;
+      const freqs = [880, 990, 1320, 1760];
+      let t = 0;
+      freqs.forEach((f) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(f, now + t);
+        g.gain.setValueAtTime(0, now + t);
+        g.gain.linearRampToValueAtTime(0.12, now + t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, now + t + 0.18);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start(now + t);
+        o.stop(now + t + 0.2);
+        t += 0.12;
+      });
+    } catch (e) {
+      console.warn("Audio not supported:", e);
+    }
   };
+
+  if (!winner) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* خلفية مظلمة */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
 
-      {/* صندوق المودال */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 transform transition-all
-                      animate-fade-in-up">
-        {/* canvas فوق المودال */}
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 transform transition-all animate-fade-in-up">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none rounded-2xl"></canvas>
 
-        <div className="relative z-10">
-          <h2 className="text-xl font-semibold mb-2">{title}</h2>
+        <div className="relative z-10 flex flex-col items-center">
+          <h2 className="text-2xl font-bold mb-4">{title}</h2>
 
-          <div className="flex flex-col md:flex-row items-center gap-4">
-            <div className="w-32 h-32 rounded-full bg-orange-100 flex items-center justify-center text-4xl font-extrabold text-orange-600 shadow-inner">
-              🎖️
-            </div>
+          {/* صورة المنتج مع أنيميشن rotation + bounce */}
+          <img
+            src={winner.imageUrl || "/placeholder.png"}
+            alt="Winner Product"
+            className="w-48 h-48 object-cover rounded-full border-4 border-orange-400 shadow-lg mb-4 animate-bounce-rotate"
+          />
 
-            <div className="text-left">
-              <div className="text-2xl font-bold">{displayName(winner)}</div>
-              {winner && winner.city && <div className="text-sm text-gray-500 mt-1">من: {winner.city}</div>}
-              {winner && winner.phone && <div className="text-sm text-gray-500 mt-1">هاتف: {winner.phone}</div>}
-            </div>
+          <div className="text-right w-full space-y-1">
+            <p><strong>الاسم:</strong> {winner.firstName} {winner.lastName}</p>
+            <p><strong>الهاتف:</strong> {winner.phone}</p>
+            <p><strong>المدينة:</strong> {winner.city}</p>
+            <p><strong>الكود:</strong> {winner.code}</p>
           </div>
 
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300"
-            >
-              {buttonText}
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="mt-6 w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700"
+          >
+            {buttonText}
+          </button>
         </div>
       </div>
 
-      {/* أنيميشن بسيطة */}
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(18px) scale(0.98); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .animate-fade-in-up {
-          animation: fadeInUp 360ms cubic-bezier(.2,.9,.3,1);
+          animation: fadeInUp 400ms cubic-bezier(.2,.9,.3,1);
+        }
+
+        @keyframes bounceRotate {
+          0%, 100% { transform: rotate(0deg) scale(1); }
+          25% { transform: rotate(-15deg) scale(1.05); }
+          50% { transform: rotate(15deg) scale(1.1); }
+          75% { transform: rotate(-8deg) scale(1.05); }
+        }
+        .animate-bounce-rotate {
+          animation: bounceRotate 1s ease-in-out;
         }
       `}</style>
     </div>
