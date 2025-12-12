@@ -24,108 +24,56 @@ export default function UploadForm({ competitionCode }) {
   // Modal (الشروط)
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
-  async function getDeviceID() {
-    const UUID_KEY = "DEVICE_UUID";
-    const COOKIE_KEY = "DEVICE_UUID_COOKIE";
+ useEffect(() => {
+  const generateHybridDeviceId = async () => {
+    try {
+      // 1) FingerprintJS
+      const fp = await FingerprintJS.load();
+      const result = await fp.get();
+      const fpId = result.visitorId;
 
-    // قراءة Cookie
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(";").shift();
+      // 2) UUID محلي لا يتغير لنفس الجهاز
+      let localUUID = localStorage.getItem("local_uuid");
+      if (!localUUID) {
+        localUUID = crypto.randomUUID();
+        localStorage.setItem("local_uuid", localUUID);
+      }
+
+      // 3) بصمة المتصفح والنظام
+      const userAgent = navigator.userAgent;
+      const language = navigator.language;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const screenRes = `${window.screen.width}x${window.screen.height}`;
+      const pixelRatio = window.devicePixelRatio;
+
+      // 4) بناء بصمة مركبة
+      const rawString =
+        fpId +
+        userAgent +
+        language +
+        timezone +
+        screenRes +
+        pixelRatio +
+        localUUID;
+
+      // 5) SHA-256 Hash
+      const encoder = new TextEncoder();
+      const data = encoder.encode(rawString);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hybridId = hashArray
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+      setDeviceId(hybridId);
+    } catch (err) {
+      console.error("Hybrid Fingerprint failed", err);
     }
+  };
 
-    // كتابة Cookie
-    function setCookie(name, value) {
-      document.cookie = `${name}=${value}; path=/; max-age=315360000`;
-    }
-
-    // توليد UUID
-    function createUUID() {
-      return "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
-    }
-
-    // قراءة من IndexedDB
-    function readFromIndexedDB() {
-      return new Promise((resolve) => {
-        const request = indexedDB.open("DeviceDB", 2); // ← تغيير الإصدار إلى 2
-
-        request.onupgradeneeded = function (e) {
-          const db = request.result;
-
-          // إصلاح المشكلة: تأكد من وجود Object Store
-          if (!db.objectStoreNames.contains("uuidStore")) {
-            db.createObjectStore("uuidStore", { keyPath: "id" });
-          }
-        };
-
-        request.onsuccess = function () {
-          const db = request.result;
-
-          if (!db.objectStoreNames.contains("uuidStore")) {
-            resolve(null);
-            return;
-          }
-
-          const tx = db.transaction("uuidStore", "readonly");
-          const store = tx.objectStore("uuidStore");
-          const getReq = store.get("device_uuid");
-
-          getReq.onsuccess = function () {
-            resolve(getReq.result?.uuid || null);
-          };
-        };
-
-        request.onerror = function () {
-          resolve(null);
-        };
-      });
-    }
-
-    // كتابة إلى IndexedDB
-    function saveToIndexedDB(uuid) {
-      const request = indexedDB.open("DeviceDB", 2);
-
-      request.onupgradeneeded = function () {
-        const db = request.result;
-        if (!db.objectStoreNames.contains("uuidStore")) {
-          db.createObjectStore("uuidStore", { keyPath: "id" });
-        }
-      };
-
-      request.onsuccess = function () {
-        const db = request.result;
-        const tx = db.transaction("uuidStore", "readwrite");
-        const store = tx.objectStore("uuidStore");
-        store.put({ id: "device_uuid", uuid });
-      };
-    }
-
-    // قراءة UUID موجود
-    let uuid = localStorage.getItem(UUID_KEY);
-    if (!uuid) uuid = getCookie(COOKIE_KEY);
-    if (!uuid) uuid = await readFromIndexedDB();
-
-    // إنشاء UUID جديد إذا غير موجود
-    if (!uuid) {
-      uuid = createUUID();
-      localStorage.setItem(UUID_KEY, uuid);
-      setCookie(COOKIE_KEY, uuid);
-      saveToIndexedDB(uuid);
-    }
-
-    return uuid;
-  }
-
-  getDeviceID().then((uuid) => setDeviceId(uuid));
+  generateHybridDeviceId();
 }, []);
 
-  
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     if (files) setFormData({ ...formData, file: files[0] });
