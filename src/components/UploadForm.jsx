@@ -25,82 +25,106 @@ export default function UploadForm({ competitionCode }) {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    async function getDeviceID() {
-      const UUID_KEY = "DEVICE_UUID";
-      const COOKIE_KEY = "DEVICE_UUID_COOKIE";
+  async function getDeviceID() {
+    const UUID_KEY = "DEVICE_UUID";
+    const COOKIE_KEY = "DEVICE_UUID_COOKIE";
 
-      // 1) قراءة Cookie
-      function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(";").shift();
-      }
-
-      // 2) كتابة Cookie
-      function setCookie(name, value) {
-        document.cookie = `${name}=${value}; path=/; max-age=315360000`; // 10 سنوات
-      }
-
-      // 3) توليد UUID
-      function createUUID() {
-        return "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-          const r = (Math.random() * 16) | 0;
-          const v = c === "x" ? r : (r & 0x3) | 0x8;
-          return v.toString(16);
-        });
-      }
-
-      // 4) IndexedDB
-      function saveToIndexedDB(uuid) {
-        const request = indexedDB.open("DeviceDB", 1);
-        request.onupgradeneeded = function () {
-          const db = request.result;
-          db.createObjectStore("uuidStore", { keyPath: "id" });
-        };
-        request.onsuccess = function () {
-          const db = request.result;
-          const tx = db.transaction("uuidStore", "readwrite");
-          const store = tx.objectStore("uuidStore");
-          store.put({ id: "device_uuid", uuid });
-        };
-      }
-
-      function readFromIndexedDB() {
-        return new Promise((resolve) => {
-          const request = indexedDB.open("DeviceDB", 1);
-          request.onsuccess = function () {
-            const db = request.result;
-            const tx = db.transaction("uuidStore", "readonly");
-            const store = tx.objectStore("uuidStore");
-            const getReq = store.get("device_uuid");
-            getReq.onsuccess = function () {
-              resolve(getReq.result?.uuid || null);
-            };
-          };
-          request.onerror = function () {
-            resolve(null);
-          };
-        });
-      }
-
-      // ===== قراءة UUID موجود
-      let uuid = localStorage.getItem(UUID_KEY);
-      if (!uuid) uuid = getCookie(COOKIE_KEY);
-      if (!uuid) uuid = await readFromIndexedDB();
-
-      // ===== إنشاء UUID جديد إذا لم يوجد
-      if (!uuid) {
-        uuid = createUUID();
-        localStorage.setItem(UUID_KEY, uuid);
-        setCookie(COOKIE_KEY, uuid);
-        saveToIndexedDB(uuid);
-      }
-
-      return uuid;
+    // قراءة Cookie
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
     }
 
-    getDeviceID().then((uuid) => setDeviceId(uuid));
-  }, []);
+    // كتابة Cookie
+    function setCookie(name, value) {
+      document.cookie = `${name}=${value}; path=/; max-age=315360000`;
+    }
+
+    // توليد UUID
+    function createUUID() {
+      return "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    }
+
+    // قراءة من IndexedDB
+    function readFromIndexedDB() {
+      return new Promise((resolve) => {
+        const request = indexedDB.open("DeviceDB", 2); // ← تغيير الإصدار إلى 2
+
+        request.onupgradeneeded = function (e) {
+          const db = request.result;
+
+          // إصلاح المشكلة: تأكد من وجود Object Store
+          if (!db.objectStoreNames.contains("uuidStore")) {
+            db.createObjectStore("uuidStore", { keyPath: "id" });
+          }
+        };
+
+        request.onsuccess = function () {
+          const db = request.result;
+
+          if (!db.objectStoreNames.contains("uuidStore")) {
+            resolve(null);
+            return;
+          }
+
+          const tx = db.transaction("uuidStore", "readonly");
+          const store = tx.objectStore("uuidStore");
+          const getReq = store.get("device_uuid");
+
+          getReq.onsuccess = function () {
+            resolve(getReq.result?.uuid || null);
+          };
+        };
+
+        request.onerror = function () {
+          resolve(null);
+        };
+      });
+    }
+
+    // كتابة إلى IndexedDB
+    function saveToIndexedDB(uuid) {
+      const request = indexedDB.open("DeviceDB", 2);
+
+      request.onupgradeneeded = function () {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("uuidStore")) {
+          db.createObjectStore("uuidStore", { keyPath: "id" });
+        }
+      };
+
+      request.onsuccess = function () {
+        const db = request.result;
+        const tx = db.transaction("uuidStore", "readwrite");
+        const store = tx.objectStore("uuidStore");
+        store.put({ id: "device_uuid", uuid });
+      };
+    }
+
+    // قراءة UUID موجود
+    let uuid = localStorage.getItem(UUID_KEY);
+    if (!uuid) uuid = getCookie(COOKIE_KEY);
+    if (!uuid) uuid = await readFromIndexedDB();
+
+    // إنشاء UUID جديد إذا غير موجود
+    if (!uuid) {
+      uuid = createUUID();
+      localStorage.setItem(UUID_KEY, uuid);
+      setCookie(COOKIE_KEY, uuid);
+      saveToIndexedDB(uuid);
+    }
+
+    return uuid;
+  }
+
+  getDeviceID().then((uuid) => setDeviceId(uuid));
+}, []);
+
   
   const handleChange = (e) => {
     const { name, value, files } = e.target;
