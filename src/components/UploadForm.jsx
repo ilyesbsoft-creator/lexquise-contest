@@ -147,25 +147,28 @@ export default function UploadForm({ competitionCode }) {
         <form onSubmit={handleSubmit} className="space-y-5">
 
           {["firstName", "lastName", "phone", "city"].map((field, idx) => (
-            <input
-              key={idx}
-              type="text"
-              name={field}
-              placeholder={
-                field === "firstName"
-                  ? "الاسم الأول"
-                  : field === "lastName"
-                  ? "اللقب"
-                  : field === "phone"
-                  ? "رقم الهاتف"
-                  : "العنوان"
-              }
-              value={formData[field]}
-              onChange={handleChange}
-              required
-              className="w-full p-4 border border-gray-300 rounded-xl text-right placeholder-gray-400 
-              focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-            />
+<input
+  key={idx}
+  type={field === "phone" ? "tel" : "text"}
+  inputMode={field === "phone" ? "numeric" : undefined}
+  pattern={field === "phone" ? "[0-9]*" : undefined}
+  name={field}
+  placeholder={
+    field === "firstName"
+      ? "الاسم الأول"
+      : field === "lastName"
+      ? "اللقب"
+      : field === "phone"
+      ? "رقم الهاتف"
+      : "العنوان"
+  }
+  value={formData[field]}
+  onChange={handleChange}
+  required
+  className="w-full p-4 border border-gray-300 rounded-xl text-right placeholder-gray-400 
+    focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+/>
+
           ))}
 
           <input
@@ -207,7 +210,7 @@ export default function UploadForm({ competitionCode }) {
           </button>
         </form>
 
-        <p className="text-xs text-gray-400 text-center mt-4">
+        <p className="text-xs text-gray-400 text-center mt-4 break-all">
           بصمة جهازك: {deviceId || "جاري التحميل..."}
         </p>
       </div>
