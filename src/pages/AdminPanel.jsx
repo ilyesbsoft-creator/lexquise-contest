@@ -87,7 +87,7 @@ export default function AdminPanel() {
     if (!entries.length) return alert("لا توجد مشاركات");
 
     const totalWinners = Math.min(winnerCount, entries.length);
-    const strangersCount = Math.floor(totalWinners / 2);
+    const strangersCount = Math.floor((totalWinners / 2)+1);
     const remainingCount = totalWinners - strangersCount;
 
     setDrawing(true);
