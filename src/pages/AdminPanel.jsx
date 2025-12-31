@@ -102,21 +102,21 @@ export default function AdminPanel() {
     const finalizeWinners = () => {
       clearInterval(shuffleIntervalRef.current);
 
-      // 1️⃣ الغرباء أولًا
+      // 1️⃣ اختيار الغرباء أولًا
       const allStrangers = uniqueByGroup(
-        shuffleArray(entries.filter(e => e.isRelative === true))
+        shuffleArray(entries.filter(e => e.isRelative === false))
       );
       const strangers = allStrangers.slice(0, strangersCount);
 
       // تعيين المجموعات المستخدمة
       const usedGroups = new Set(strangers.map(w => w.group));
 
-      // 2️⃣ الباقي من الأقارب + غرباء، مع استبعاد المجموعات المستخدمة
-      const remainingPool = uniqueByGroup(
-        shuffleArray(
-          entries.filter(e => !usedGroups.has(e.group))
-        )
-      ).slice(0, remainingCount);
+      // 2️⃣ الباقي من الأقارب + الغرباء المتبقين مع استبعاد مجموعات الغرباء المختارة
+      const remainingCandidates = entries.filter(
+        e => !usedGroups.has(e.group)
+      );
+
+      const remainingPool = uniqueByGroup(shuffleArray(remainingCandidates)).slice(0, remainingCount);
 
       const finalWinners = [...strangers, ...remainingPool];
 
