@@ -170,7 +170,7 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
             <p><strong>الاسم:</strong> {winner.firstName}&nbsp;{winner.lastName}</p>
             <p>
   <strong>الهاتف:</strong>{" "}
-  <span style={{  unicodeBidi: "bidi-override" }}>
+  <span style={{ direction: "rtl", unicodeBidi: "bidi-override" }}>
     {winner.phone.slice(0, -4) + "****"}
   </span>
 </p>
