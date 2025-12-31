@@ -104,7 +104,7 @@ export default function AdminPanel() {
 
       // 1️⃣ الغرباء أولًا
       const allStrangers = uniqueByGroup(
-        shuffleArray(entries.filter(e => e.isRelative === false))
+        shuffleArray(entries.filter(e => e.isRelative === true))
       );
       const strangers = allStrangers.slice(0, strangersCount);
 
