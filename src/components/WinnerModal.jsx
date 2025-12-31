@@ -168,7 +168,12 @@ export default function WinnerModal({ winner, title, buttonText, onClose, onShow
 
           <div className="text-right w-full space-y-1">
             <p><strong>الاسم:</strong> {winner.firstName}&nbsp;{winner.lastName}</p>
-            <p><strong>الهاتف:</strong> {winner.phone.slice(0, -4) + "****"}</p>
+            <p>
+  <strong>الهاتف:</strong>{" "}
+  <span style={{ direction: "ltr", unicodeBidi: "bidi-override" }}>
+    {winner.phone.slice(0, -4) + "****"}
+  </span>
+</p>
             <p><strong>المدينة:</strong> {winner.city}</p>
             <p><strong>الكود:</strong> {winner.code}</p>
           </div>
